@@ -214,7 +214,149 @@ $('#clearHistory').onclick=()=>{if(!S.log.length)return;if(!confirm('Effacer dé
 $('#journalTitle').textContent='Dernier résultat';
 $('#journalText').textContent='Journal effacé · la prochaine action apparaîtra ici.';renderHistory()};
 $('#resetAll').onclick=()=>{if(!confirm('Effacer tout l’état sauvegardé ?'))return;localStorage.removeItem(KEY);S=structuredClone(defaults);note('Réinitialisation complète','État initial restauré.')};
-function undoLast(){if(!S.history.length)return note('Rien à annuler','Aucune opération récente.');let old=JSON.parse(S.history.pop()),hist=S.history;S={...old,history:hist};save();render();note('Action annulée','L’état précédent a été restauré.')}$('#undo').onclick=undoLast;$('#ribbonUndo').onclick=e=>{e.stopPropagation();undoLast()};$$('[data-quick]').forEach(b=>b.onclick=()=>{let k=b.dataset.quick;if(k==='absorb')$('#useAbsorb').click();if(k==='foamreact')useFoam(3,'laststand');if(k==='heal')cast('Soins',1,'action','heal')});makeSpells();if(S.log.length){const last=S.log[S.log.length-1];
+function undoLast(){if(!S.history.length)return note('Rien à annuler','Aucune opération récente.');let old=JSON.parse(S.history.pop()),hist=S.history;S={...old,history:hist};save();render();note('Action annulée','L’état précédent a été restauré.')}$('#undo').onclick=undoLast;$('#ribbonUndo').onclick=e=>{e.stopPropagation();undoLast()};$$('[data-quick]').forEach(b=>b.onclick=()=>{let k=b.dataset.quick;if(k==='absorb')$('#useAbsorb').click();if(k==='foamreact')useFoam(3,'laststand');if(k==='heal')cast('Soins',1,'action','heal')});/* Social — parité d'ergonomie avec Wonq, données propres à Silas */
+(() => {
+  const skills = [
+    ['Athlétisme','FOR',-1,''],['Acrobaties','DEX',2,''],['Discrétion','DEX',2,''],['Escamotage','DEX',5,'Maîtrise'],
+    ['Arcanes','INT',8,'Maîtrise'],['Histoire','INT',5,''],['Investigation','INT',8,'Maîtrise'],['Nature','INT',5,''],['Religion','INT',5,''],
+    ['Dressage','SAG',1,''],['Intuition','SAG',1,''],['Médecine','SAG',4,'Maîtrise'],['Perception','SAG',4,'Maîtrise'],['Survie','SAG',1,''],
+    ['Intimidation','CHA',0,''],['Persuasion','CHA',0,''],['Représentation','CHA',0,''],['Tromperie','CHA',0,'']
+  ];
+  const abilities = [
+    {name:'Force',abbr:'FOR',score:8,mod:-1,save:-1,saveProf:false},
+    {name:'Dextérité',abbr:'DEX',score:14,mod:2,save:2,saveProf:false},
+    {name:'Constitution',abbr:'CON',score:15,mod:2,save:5,saveProf:true},
+    {name:'Intelligence',abbr:'INT',score:20,mod:5,save:8,saveProf:true},
+    {name:'Sagesse',abbr:'SAG',score:12,mod:1,save:1,saveProf:false},
+    {name:'Charisme',abbr:'CHA',score:10,mod:0,save:0,saveProf:false}
+  ];
+  const items = [
+    ['Exosquelette catalytique','Armure principale · demi-plate'],
+    ['Dague alchimique','Arme'],
+    ['Arbalète légère','Arme'],
+    ['Mousse expansive','Objet merveilleux symbiotique'],
+    ['Sac sans fond','Objet notable'],
+    ['Cruche alchimique','Objet notable'],
+    ['Lunettes de nuit','Objet notable'],
+    ['Matériel d’alchimiste','Outil maîtrisé'],
+    ['Outils de voleur','Outil maîtrisé'],
+    ['Carnet de recherches','Divers'],
+    ['Fioles diverses','Divers']
+  ];
+  let mode = 'normal';
+  let tab = 'skills';
+
+  const style = document.createElement('style');
+  style.id = 'silas-social-style';
+  style.textContent =
+    '.social-shell{overflow:visible}.social-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}.social-head h2{margin:.1rem 0}.social-roll-modes{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}' +
+    '.social-tabs{display:flex;gap:7px;overflow:auto;margin:0 0 12px;padding-bottom:2px}.social-tabs button{white-space:nowrap}.social-tabs .on,.social-roll-modes .on{border-color:var(--gold);box-shadow:inset 0 0 18px #d3a65e20;background:#2a2418}' +
+    '.social-skills{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.ability-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}' +
+    '.social-ability-card{border:1px solid var(--line);border-radius:13px;background:linear-gradient(145deg,#17201d,#0e1513);padding:11px}.social-ability-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.social-ability-head span{color:var(--gold);font-size:.7rem;font-weight:900;letter-spacing:.12em}.social-ability-head h3{margin:1px 0 0;font-size:1rem}.social-ability-head>strong{font:900 2rem Georgia,serif;color:#f5ead8}' +
+    '.social-ability-values{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:9px 0}.social-ability-values span{border:1px solid #3d4943;border-radius:8px;padding:6px;text-align:center;color:var(--muted);font-size:.7rem}.social-ability-values b{display:block;color:#f0dcc0;font-size:1rem}.social-ability-values .proficient{border-color:#8b7249;background:#251f17;color:#d8bb80}.social-ability-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}.social-ability-actions button{min-height:38px;padding:6px}.social-ability-actions .save-proficient{border-color:#9b7c4e;box-shadow:inset 0 0 16px #d3a65e13}' +
+    '.social-skill{min-height:62px;border:1px solid var(--line);border-radius:11px;background:#121a17;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;text-align:left;color:inherit}.social-skill b,.social-skill small{display:block}.social-skill small{color:var(--muted)}.social-skill strong{font-size:1.25rem;color:var(--gold)}.social-skill.mastered{border-color:#665b3d}' +
+    '.social-passives{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.social-passives span{border:1px solid var(--line);border-radius:999px;padding:5px 9px;color:var(--muted)}' +
+    '.inventory-tools{display:flex;gap:8px;align-items:center;margin:8px 0}.inventory-tools input{width:min(420px,100%);min-height:42px;border:1px solid var(--line);border-radius:10px;background:#0c1512;color:inherit;padding:0 11px}.inventory-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.inventory-card{border:1px solid var(--line);border-radius:11px;background:#121a17;padding:11px;min-height:62px}.inventory-card small{display:block;color:var(--muted);margin-top:3px}' +
+    '@media(max-width:767px){.social-head{display:block}.social-roll-modes{justify-content:flex-start;margin-top:10px}.social-skills,.ability-grid{grid-template-columns:1fr}.inventory-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.social-tabs{position:sticky;top:151px;z-index:25;background:#08100ff2;padding:5px 0}}@media(min-width:768px) and (max-width:1100px){.social-skills,.ability-grid,.inventory-grid{grid-template-columns:repeat(2,1fr)}}';
+  document.head.appendChild(style);
+
+  const historyView = document.getElementById('history');
+  const nav = document.querySelector('.nav');
+  if (!historyView || !nav) return;
+
+  const socialView = document.createElement('section');
+  socialView.className = 'view';
+  socialView.id = 'social';
+  socialView.innerHTML =
+    '<div class="grid"><article class="card full social-shell">' +
+      '<div class="social-head"><div><div class="eyebrow">Hors combat</div><h2>Social</h2><div class="meta">Compétences, caractéristiques, jets de sauvegarde et équipement de Silas.</div></div>' +
+      '<div class="social-roll-modes" id="socialRollModes"><button class="ability on" data-social-mode="normal">Normal</button><button class="ability" data-social-mode="adv">Avantage</button><button class="ability" data-social-mode="dis">Désavantage</button></div></div>' +
+      '<div class="social-tabs" id="socialTabs"><button class="ability on" data-social-tab="skills">Compétences</button><button class="ability" data-social-tab="abilities">Carac. &amp; JdS</button><button class="ability" data-social-tab="inventory">Inventaire</button></div>' +
+      '<div id="socialContent"></div>' +
+    '</article></div>';
+  historyView.parentNode.insertBefore(socialView, historyView);
+
+  const socialButton = document.createElement('button');
+  socialButton.dataset.view = 'social';
+  socialButton.textContent = 'Social';
+  const historyButton = nav.querySelector('[data-view="history"]');
+  nav.insertBefore(socialButton, historyButton || null);
+  socialButton.onclick = () => switchView('social');
+
+  const content = socialView.querySelector('#socialContent');
+  const fmt = n => n >= 0 ? '+' + n : String(n);
+  const socialRoll = (label, bonus) => {
+    const a = d(1,20).t, b = mode === 'normal' ? null : d(1,20).t;
+    const chosen = mode === 'adv' ? Math.max(a,b) : mode === 'dis' ? Math.min(a,b) : a;
+    const total = chosen + bonus;
+    const diceText = b === null ? 'd20 ' + a : 'd20 ' + a + ' / ' + b + ' → ' + chosen;
+    const detail = diceText + ' ' + fmt(bonus) + ' = ' + total + (mode === 'adv' ? ' · avantage' : mode === 'dis' ? ' · désavantage' : '');
+    note('Social · ' + label, detail);
+  };
+
+  function renderSkills(){
+    content.innerHTML =
+      '<div class="social-passives"><span>Perception passive <b>14</b></span><span>Intuition passive <b>11</b></span><span>Investigation passive <b>18</b></span><span>Maîtrise <b>+3</b></span></div>' +
+      '<div class="social-skills">' +
+      skills.map(s => '<button class="social-skill ' + (s[3] ? 'mastered' : '') + '" data-skill="' + s[0] + '"><span><b>' + s[0] + '</b><small>' + s[1] + (s[3] ? ' · ' + s[3] : '') + '</small></span><strong>' + fmt(s[2]) + '</strong></button>').join('') +
+      '</div>';
+    content.querySelectorAll('[data-skill]').forEach(btn => {
+      const s = skills.find(x => x[0] === btn.dataset.skill);
+      btn.onclick = () => socialRoll(s[0], s[2]);
+    });
+  }
+
+  function renderAbilities(){
+    content.innerHTML =
+      '<div class="social-passives"><span>JdS maîtrisés : <b>Constitution, Intelligence</b></span><span>Incantation : <b>Intelligence</b></span><span>Langues : <b>Commun, Nain</b></span></div>' +
+      '<div class="ability-grid">' +
+      abilities.map(a =>
+        '<div class="social-ability-card"><div class="social-ability-head"><div><span>' + a.abbr + '</span><h3>' + a.name + '</h3></div><strong>' + a.score + '</strong></div>' +
+        '<div class="social-ability-values"><span>Mod.<b>' + fmt(a.mod) + '</b></span><span>Test<b>' + fmt(a.mod) + '</b></span><span class="' + (a.saveProf ? 'proficient' : '') + '">JdS<b>' + fmt(a.save) + '</b></span></div>' +
+        '<div class="social-ability-actions"><button class="ability" data-check="' + a.abbr + '">Tester</button><button class="ability ' + (a.saveProf ? 'save-proficient' : '') + '" data-save="' + a.abbr + '">JdS</button></div></div>'
+      ).join('') + '</div>';
+    content.querySelectorAll('[data-check]').forEach(btn => {
+      const a = abilities.find(x => x.abbr === btn.dataset.check);
+      btn.onclick = () => socialRoll('Test de ' + a.name, a.mod);
+    });
+    content.querySelectorAll('[data-save]').forEach(btn => {
+      const a = abilities.find(x => x.abbr === btn.dataset.save);
+      btn.onclick = () => socialRoll('JdS de ' + a.name, a.save);
+    });
+  }
+
+  function renderInventory(){
+    content.innerHTML =
+      '<div class="social-passives"><span>Outils : <b>alchimiste, voleur</b></span><span>Armures : <b>légères, intermédiaires, boucliers</b></span></div>' +
+      '<div class="inventory-tools"><input id="socialInventorySearch" type="search" placeholder="Rechercher dans l’inventaire…" aria-label="Rechercher dans l’inventaire"></div>' +
+      '<div class="inventory-grid" id="socialInventoryGrid">' +
+      items.map(i => '<div class="inventory-card" data-item-search="' + (i[0] + ' ' + i[1]).toLowerCase() + '"><b>' + i[0] + '</b><small>' + i[1] + '</small></div>').join('') +
+      '</div>';
+    const input = content.querySelector('#socialInventorySearch');
+    input.oninput = () => {
+      const q = input.value.trim().toLowerCase();
+      content.querySelectorAll('.inventory-card').forEach(card => card.hidden = !!q && !card.dataset.itemSearch.includes(q));
+    };
+  }
+
+  function renderTab(){
+    socialView.querySelectorAll('[data-social-tab]').forEach(b => b.classList.toggle('on', b.dataset.socialTab === tab));
+    if (tab === 'skills') renderSkills();
+    if (tab === 'abilities') renderAbilities();
+    if (tab === 'inventory') renderInventory();
+  }
+
+  socialView.querySelectorAll('[data-social-mode]').forEach(btn => btn.onclick = () => {
+    mode = btn.dataset.socialMode;
+    socialView.querySelectorAll('[data-social-mode]').forEach(b => b.classList.toggle('on', b.dataset.socialMode === mode));
+  });
+  socialView.querySelectorAll('[data-social-tab]').forEach(btn => btn.onclick = () => {
+    tab = btn.dataset.socialTab;
+    renderTab();
+  });
+  renderTab();
+})();
+makeSpells();if(S.log.length){const last=S.log[S.log.length-1];
 $('#journalTitle').textContent=last.title;
 $('#journalText').textContent=last.text}render();})();
 </script><!-- GitHub Pages deployment trigger --></body></html>
