@@ -326,6 +326,7 @@ function undoLast(){if(!S.history.length)return note('Rien à annuler','Aucune o
   }
 
   function renderInventory(){
+    if(window.SilasInventoryRender){window.SilasInventoryRender();return;}
     content.innerHTML =
       '<div class="social-passives"><span>Outils : <b>alchimiste, voleur</b></span><span>Armures : <b>légères, intermédiaires, boucliers</b></span></div>' +
       '<div class="inventory-tools"><input id="socialInventorySearch" type="search" placeholder="Rechercher dans l’inventaire…" aria-label="Rechercher dans l’inventaire"></div>' +
@@ -356,7 +357,8 @@ function undoLast(){if(!S.history.length)return note('Rien à annuler','Aucune o
   });
   renderTab();
 })();
+window.SilasAPI={get state(){return S},snapshot,push:snapshot,save,render,log:(message)=>note('Inventaire',message,'','Inventaire','silas'),undo:undoLast};
 makeSpells();if(S.log.length){const last=S.log[S.log.length-1];
 $('#journalTitle').textContent=last.title;
 $('#journalText').textContent=last.text}render();})();
-</script><!-- GitHub Pages deployment trigger --></body></html>
+</script><script src="silas-inventory.js?v=1"></script><!-- GitHub Pages deployment trigger --></body></html>
